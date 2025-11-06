@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""
+Generate DNABERT-2 differential embeddings (ALT - REF) for rat variants.
+This script is for the Logistic Regression baseline (diff embeddings method).
+"""
+import pandas as pd
+import torch
+from transformers import AutoTokenizer, BertModel
+import numpy as np
+from tqdm import tqdm
+import argparse
+
+def get_dnabert2_embeddings(sequences, model, tokenizer, device, batch_size=32):
+    """
+    Generates embeddings for a list of DNA sequences using DNABERT-2.
+    """
+    all_embeddings = []
+    
+    for i in tqdm(range(0, len(sequences), batch_size), desc="Generating Embeddings"):
+        batch_sequences = sequences[i:i+batch_size]
+        
+        inputs = tokenizer(batch_sequences, padding="longest", return_tensors='pt', truncation=True, max_length=512)
+        inputs = {key: val.to(device) for key, val in inputs.items()}
+        
+        with torch.no_grad():
+            hidden_states = model(**inputs)[0]
+        
+        batch_embeddings = torch.mean(hidden_states, dim=1)
+        all_embeddings.append(batch_embeddings.cpu().numpy())
+        
+    return np.vstack(all_embeddings)
+
+def load_rat_data(input_file):
+    """
+    Load rat data from TSV file (no header: variant_id, ref_seq, alt_seq, label, tissue_id).
+    """
+    df = pd.read_csv(input_file, sep='\t', header=None,
+                     names=['variant_id', 'ref_seq', 'alt_seq', 'label', 'tissue_id'],
+                     dtype={'variant_id': str})
+    return df
+
+def main(args):
+    """
+    Main function to generate DIFFERENTIAL embeddings (ALT - REF) for rat data.
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    print("Loading DNABERT-2 model and tokenizer...")
+    tokenizer = AutoTokenizer.from_pretrained("zhihan1996/DNABERT-2-117M", trust_remote_code=True)
+    model = BertModel.from_pretrained("zhihan1996/DNABERT-2-117M", trust_remote_code=True)
+    model.to(device)
+    model.eval()
+    print("Model and tokenizer loaded.")
+
+    print(f"Loading data from {args.input_file}...")
+    df = load_rat_data(args.input_file)
+    print(f"Loaded {len(df)} variants")
+    
+    # Rat data already has ref_seq and alt_seq columns
+    wt_sequences = df['ref_seq'].tolist()
+    mt_sequences = df['alt_seq'].tolist()
+    
+    # Generate embeddings
+    print("Generating embeddings for Wild-Type (REF) sequences...")
+    wt_embeddings = get_dnabert2_embeddings(wt_sequences, model, tokenizer, device, args.batch_size)
+    
+    print("Generating embeddings for Mutant-Type (ALT) sequences...")
+    mt_embeddings = get_dnabert2_embeddings(mt_sequences, model, tokenizer, device, args.batch_size)
+    
+    # Calculate DIFFERENTIAL embeddings (ALT - REF) for Logistic Regression
+    diff_embeddings = mt_embeddings - wt_embeddings
+    
+    # Prepare labels (already 0/1 in rat data)
+    labels = df['label'].values.astype(int)
+    variant_ids = df['variant_id'].values
+
+    print(f"Saving results to {args.output_file}...")
+    np.savez_compressed(
+        args.output_file, 
+        variant_ids=variant_ids,
+        embeddings=diff_embeddings,
+        labels=labels
+    )
+    print(f"Done. Saved {len(variant_ids)} variants")
+    print(f"Embedding shape: {diff_embeddings.shape} (differential: ALT - REF)")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate DNABERT-2 differential embeddings for rat variants (Logistic method).")
+    parser.add_argument(
+        "--input_file", 
+        type=str, 
+        required=True,
+        help="Path to the rat input TSV file (ratgtex_silver_benchmark_balanced.tsv)."
+    )
+    parser.add_argument(
+        "--output_file", 
+        type=str, 
+        default="dnabert2_rat_logistic_embeddings.npz",
+        help="Path to save the output NPZ file."
+    )
+    parser.add_argument(
+        "--batch_size", 
+        type=int, 
+        default=32,
+        help="Batch size for generating embeddings."
+    )
+    
+    args = parser.parse_args()
+    main(args)
+

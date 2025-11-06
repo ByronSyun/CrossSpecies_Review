@@ -1,0 +1,71 @@
+Bootstrap: docker
+From: nvcr.io/nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+
+%files
+    # Copy the local vortex-main directory on the host to /workspace/vortex-main inside the container.
+    # The build command must be run from the directory containing vortex-main.
+    ./vortex-main /workspace/vortex-main
+
+%post
+    # Set DEBIAN_FRONTEND to noninteractive to avoid prompts.
+    export DEBIAN_FRONTEND=noninteractive
+
+    # Create a temporary apt configuration to bypass GPG verification issues on HPC.
+    # This is a workaround for "Couldn't create temporary file" errors.
+    echo 'Acquire::AllowInsecureRepositories "true";' > /etc/apt/apt.conf.d/99-insecure
+    echo 'Acquire::AllowDowngradeToInsecureRepositories "true";' >> /etc/apt/apt.conf.d/99-insecure
+
+    # Update and install system dependencies, including python3-dev for C++ extensions and ninja-build for faster compilation.
+    # The --allow-unauthenticated flag is an additional safeguard.
+    apt-get update --allow-insecure-repositories
+    apt-get install -y --allow-unauthenticated --no-install-recommends \
+        git \
+        python3 \
+        python3-dev \
+        python3-pip \
+        python3-tomli \
+        ninja-build && \
+    rm -rf /var/lib/apt/lists/*
+    
+    # Remove the temporary apt configuration file.
+    rm /etc/apt/apt.conf.d/99-insecure
+
+    # Ensure python3 is the default python
+    update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+
+    # Initialize Git submodules (e.g., cutlass) required for compilation.
+    cd /workspace/vortex-main
+    git config --global --add safe.directory /workspace/vortex-main
+    git submodule update --init --recursive
+
+    # Install Python dependencies from pyproject.toml
+    python3 -c 'import tomli; \
+                p = tomli.load(open("pyproject.toml", "rb"))["project"]; \
+                deps = p["dependencies"] + p.get("optional-dependencies", {}).get("special", []); \
+                open("requirements.txt", "w").write("\n".join(deps))'
+
+    # Install torch first, then the rest.
+    pip3 install --no-cache-dir `grep ^torch requirements.txt`
+    pip3 install --no-cache-dir -r requirements.txt
+
+    # Install other necessary packages for evaluation
+    pip3 install --no-cache-dir pandas scikit-learn
+
+    # Compile and install the custom CUDA attention mechanism.
+    cd /workspace/vortex-main/vortex/ops/attn
+    MAX_JOBS=32 pip3 install --no-cache-dir -v -e . --no-build-isolation
+
+%environment
+    export PYTHONPATH="/workspace/vortex-main:$PYTHONPATH"
+    export WORKDIR="/workspace/vortex-main"
+
+%runscript
+    cd /workspace/vortex-main
+    echo "Container is running. You are in /workspace/vortex-main."
+    echo "You can now run your python scripts, e.g., python generate.py ..."
+    /bin/bash "$@"
+
+%help
+    This container is for running the Evo2/Vortex model.
+    It includes all necessary dependencies and custom compiled ops.
+    To run an interactive shell: apptainer shell --nv vortex.sif 

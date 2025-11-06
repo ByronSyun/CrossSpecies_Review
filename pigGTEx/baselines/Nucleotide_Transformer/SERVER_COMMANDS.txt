@@ -1,0 +1,56 @@
+# Nucleotide Transformer PigGTEx Server Commands
+
+## 前置准备（一次性操作）
+
+1. 创建工作目录和添加header：
+```bash
+cd "/mnt/userdata4/splicing/Nucleotide Transformer"
+mkdir -p piggtex/results
+
+# 添加header到pig数据
+cd piggtex
+echo -e "variant_id\tref_seq\talt_seq\tlabel\tchrom" > piggtex_with_header.tsv
+cat /mnt/userdata4/splicing/PigGTEx/processed_data/piggtex_silver_benchmark_balanced.tsv >> piggtex_with_header.tsv
+
+# 验证header
+head -1 piggtex_with_header.tsv
+
+# 复制脚本（从human目录）
+cp ../nt_score_variants.py .
+```
+
+2. 上传执行脚本：
+```bash
+# 本地执行
+scp /Users/byronsun/Desktop/AS_复现模型/BIB_review/code/pigGTEx/baselines/Nucleotide_Transformer/run_nt_pig_server.sh \
+    yinuos@mlerp-monash-node04:"/mnt/userdata4/splicing/Nucleotide Transformer/"
+```
+
+## 运行NT推理
+
+服务器执行：
+```bash
+cd "/mnt/userdata4/splicing/Nucleotide Transformer"
+bash run_nt_pig_server.sh
+```
+
+**预计运行时间：** 2-4小时（约26,358个变异）
+
+## 下载结果
+
+本地执行：
+```bash
+scp "yinuos@mlerp-monash-node04:/mnt/userdata4/splicing/Nucleotide Transformer/piggtex/results/nt_pig_scores.csv" \
+    /Users/byronsun/Desktop/AS_复现模型/BIB_review/code/pigGTEx/baselines/Nucleotide_Transformer/results/
+
+scp "yinuos@mlerp-monash-node04:/mnt/userdata4/splicing/Nucleotide Transformer/piggtex/results/nt_pig_scores.jsonl" \
+    /Users/byronsun/Desktop/AS_复现模型/BIB_review/code/pigGTEx/baselines/Nucleotide_Transformer/results/
+```
+
+## 注意事项
+
+- 模型：InstaDeepAI/nucleotide-transformer-500m-1000g (v1, stable)
+- 窗口大小：8192bp
+- Batch size：16
+- GPU内存需求：~12-16GB
+

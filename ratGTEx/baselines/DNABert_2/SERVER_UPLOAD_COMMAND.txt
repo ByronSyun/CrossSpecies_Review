@@ -1,0 +1,23 @@
+# Upload DNABERT-2 Logistic scripts to server
+
+# Create directory on server
+ssh username@server "mkdir -p /mnt/userdata4/splicing/DNABert_2_rat"
+
+# Upload scripts
+scp predict_dnabert2_logistic_rat.py train_classifier_rat.py run_dnabert2_logistic_rat_server.sh \
+    username@server:/mnt/userdata4/splicing/DNABert_2_rat/
+
+# On server, run:
+cd /mnt/userdata4/splicing/DNABert_2_rat/
+chmod +x run_dnabert2_logistic_rat_server.sh
+bash run_dnabert2_logistic_rat_server.sh
+
+# Download results back to local
+scp username@server:/mnt/userdata4/splicing/DNABert_2_rat/results/dnabert2_rat_logistic_scores.tsv \
+    /Users/byronsun/Desktop/AS_复现模型/BIB_review/code/ratGTEx/baselines/DNABert_2/results/
+
+# Then run evaluation locally
+cd /Users/byronsun/Desktop/AS_复现模型/BIB_review/code/ratGTEx/baselines
+python rat_summary_results.py
+python rat_evaluate_results.py
+

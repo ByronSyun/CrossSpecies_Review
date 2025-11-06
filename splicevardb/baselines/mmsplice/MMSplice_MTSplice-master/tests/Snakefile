@@ -1,0 +1,18 @@
+from mmsplice import MMSplice, predict_save
+from mmsplice.vcf_dataloader import SplicingVCFDataloader
+
+rule all:
+    input:
+        "data/pred.csv"
+
+rule mmsplice:
+    input:
+        fasta = "data/hg19.nochr.chr17.fa",
+        gtf = "data/test.gtf",
+        vcf = "data/test.vcf.gz"
+    output:
+        csv = "data/pred.csv"
+    run:
+        dl = SplicingVCFDataloader(input.gtf, input.fasta, input.vcf)
+        model = MMSplice()
+        predict_save(model, dl, output.csv)

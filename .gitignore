@@ -1,0 +1,107 @@
+# Data files - DO NOT upload
+*.csv
+*.tsv
+*.npz
+*.npy
+*.json
+*.jsonl
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.parquet
+*.feather
+
+# Large binary files
+*.vcf
+*.vcf.gz
+*.bam
+*.sam
+*.fasta
+*.fa
+*.fastq
+*.fq
+
+# Image outputs (optional - uncomment if you want to exclude)
+# *.png
+# *.pdf
+# *.jpg
+# *.jpeg
+# *.svg
+
+# Model weights and checkpoints
+*.pt
+*.pth
+*.ckpt
+*.joblib
+*.model
+*.weights
+
+# Excel files
+*.xlsx
+*.xls
+
+# Compressed files with data
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# R
+.Rhistory
+.RData
+.Rproj.user
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.cache
+
+# Specific large data directories
+results/
+output/
+data/
+datasets/
+checkpoints/
+
+# But keep README and documentation
+!README.md
+!*.md
+!LICENSE
